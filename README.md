@@ -1,7 +1,7 @@
 # Pawn-Shop-LLM
 A Pawn Shop game where you interact with an LLM, and negotiate to purchase and sell items.
 
-Play Online: https://desubicator.github.io/Pawn-Shop-LLM/
+Play Online: https://francopirinoli.github.io/Pawn-Shop-LLM/
 
 ## How to Play / Gameplay Loop
 
