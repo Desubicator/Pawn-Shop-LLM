@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pawn Shop LLM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* --- Background Image --- */
+        body {
+            background-image: url('assets/background.jpg'); /* Path to your image */
+            background-size: cover; /* Cover the entire viewport */
+            background-position: center center; /* Center the image */
+            background-repeat: no-repeat; /* Do not repeat the image */
+            background-attachment: fixed; /* Keep background fixed during scroll */
+            min-height: 100vh; /* Ensure body takes at least full viewport height */
+            font-family: 'Inter', sans-serif; /* Example font */
+        }
+        /* Add a slight overlay for better text readability if needed */
+        body::before {
+            content: "";
+            position: fixed; /* Or absolute, depending on desired effect */
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.1); /* Light overlay */
+            z-index: -1; /* Place behind content */
+        }
+
+        /* Panel Styles */
+        .content-panel {
+            border: 1px solid #ccc;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0.375rem; /* Slightly more rounded */
+            background-color: rgba(255, 255, 255, 0.85); /* Semi-transparent white background for panels */
+            backdrop-filter: blur(2px); /* Optional blur effect */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Soft shadow */
+        }
+        .panel-heading { margin-bottom: 0.75rem; font-size: 1.125rem; font-weight: 600; border-bottom: 1px solid #ddd; padding-bottom: 0.5rem; color: #333; }
+
+        /* Portrait Style */
+        .portrait { width: 100%; height: 200px; object-fit: contain; margin-bottom: 0.5rem; border: 1px solid #ddd; background-color: #f0f0f0; border-radius: 0.25rem; }
+
+        /* Dialogue Log Style */
+        #dialogue-log {
+             height: 853px; /* Fixed height */
+             overflow-y: auto; /* Enable vertical scroll */
+             border: 1px solid #ccc;
+             padding: 0.75rem;
+             background-color: rgba(255, 255, 255, 0.95); /* Slightly more opaque for readability */
+             border-radius: 0.25rem;
+        }
+
+        /* Button Styles */
+        .btn { padding: 0.5rem 1rem; border: 1px solid #bbb; background-color: #e9e9e9; border-radius: 0.375rem; cursor: pointer; font-size: 0.875rem; line-height: 1.25rem; transition: background-color 0.2s ease, box-shadow 0.2s ease; }
+        .btn:hover:not(:disabled) { background-color: #dcdcdc; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        /* Specific style for save/load buttons in modal */
+        .btn-save-load { background-color: #d1fae5; border-color: #a7f3d0; color: #065f46;} /* Light green */
+        .btn-save-load:hover:not(:disabled) { background-color: #a7f3d0; }
+        .btn-save-load:disabled { background-color: #e5e7eb; border-color: #d1d5db; color: #9ca3af;}
+
+
+        /* Input Field Styles */
+        .input-field { border: 1px solid #bbb; padding: 0.5rem; border-radius: 0.375rem; width: 100%; background-color: rgba(255, 255, 255, 0.9); }
+        /* --- Textarea Style --- */
+        #player-input.input-field {
+            padding-top: 0.5rem; /* Adjust padding if needed */
+            padding-bottom: 0.5rem;
+            line-height: 1.5; /* Improve line spacing */
+            resize: vertical; /* Allow vertical resize, disable horizontal */
+            min-height: 120px; /* Approx 3 lines height */
+        }
+
+        /* Modal Styles (Options & Inventory) */
+        .modal-overlay { background-color: rgba(0, 0, 0, 0.6); } /* Darker overlay for modals */
+        .modal-content { background-color: white; backdrop-filter: none; } /* Modal content solid white */
+
+        /* Message Area Styles */
+        #message-area { padding: 0.75rem; border-radius: 0.25rem; border: 1px solid; margin-top: auto; /* Push to bottom */ }
+        #message-area.success { border-color: #4CAF50; color: #2E7D32; background-color: #E8F5E9; }
+        #message-area.error { border-color: #F44336; color: #C62828; background-color: #FFEBEE; }
+        #message-area.info { border-color: #2196F3; color: #1565C0; background-color: #E3F2FD; }
+
+        /* Text & Dialogue Styles */
+        .player-name-display, .customer-name-heading-display { font-weight: 600; color: #444; }
+        .player-name-display { margin-right: 0.5rem; }
+        .edit-name-input-group { display: flex; align-items: center; gap: 0.5rem; }
+        #dialogue-log p { margin-bottom: 0.5rem; line-height: 1.5; }
+        #dialogue-log strong { font-weight: 600; }
+        #dialogue-log .player-message strong { color: #1976D2; } /* Player blue */
+        #dialogue-log .customer-message strong { color: #388E3C; } /* Customer green */
+        #dialogue-log .system-message strong { color: #F57C00; } /* System orange */
+        #dialogue-log .italic { color: #666; font-style: italic;}
+
+        /* Appraisal Styles */
+        #appraisal-info span { color: #555; font-style: italic; }
+        #appraisal-info span.revealed { color: inherit; font-style: normal; font-weight: 500; }
+
+        /* Layout Styles */
+        .main-grid-container {
+            display: grid;
+            grid-template-columns: 1fr; /* Default to single column */
+            gap: 1.5rem; /* 24px */
+            max-width: 1280px; /* xl */
+            margin-left: auto;
+            margin-right: auto;
+        }
+        @media (min-width: 1024px) { /* lg breakpoint */
+            .main-grid-container {
+                grid-template-columns: repeat(3, minmax(0, 1fr)); /* Three columns on large screens */
+            }
+        }
+        body.body-padding { padding: 1rem; }
+         @media (min-width: 768px) { body.body-padding { padding: 2rem; } }
+
+        /* --- NEW: Inventory Modal Styles --- */
+        #inventory-modal .modal-content {
+            max-height: 80vh; /* Limit height */
+            display: flex;
+            flex-direction: column;
+        }
+        #inventory-cards-container {
+            overflow-y: auto; /* Allow scrolling for cards */
+            flex-grow: 1; /* Allow container to take available space */
+            padding: 0.5rem; /* Add some padding around the grid */
+            background-color: #f9fafb; /* Light gray background for card area */
+            border-radius: 0.25rem;
+            border: 1px solid #e5e7eb;
+        }
+        .inventory-item-card {
+            background-color: white;
+            border: 1px solid #e5e7eb; /* Tailwind gray-200 */
+            border-radius: 0.375rem; /* rounded-md */
+            padding: 1rem; /* p-4 */
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); /* shadow-sm */
+            font-size: 0.875rem; /* text-sm */
+            line-height: 1.25rem;
+        }
+        .inventory-item-card h3 {
+            font-size: 1rem; /* text-base */
+            font-weight: 600; /* font-semibold */
+            margin-bottom: 0.5rem; /* mb-2 */
+            color: #1f2937; /* gray-800 */
+        }
+        .inventory-item-card p {
+            margin-bottom: 0.25rem; /* mb-1 */
+            color: #4b5563; /* gray-600 */
+        }
+        .inventory-item-card strong {
+             color: #374151; /* gray-700 */
+             font-weight: 500; /* font-medium */
+        }
+        .inventory-item-card .item-description {
+             font-style: italic;
+             color: #6b7280; /* gray-500 */
+             margin-top: 0.5rem; /* mt-2 */
+             margin-bottom: 0.75rem; /* mb-3 */
+        }
+        .value-comparison { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px dashed #d1d5db; }
+        .value-comparison .profit { color: #16a34a; /* green-600 */ }
+        .value-comparison .loss { color: #dc2626; /* red-600 */ }
+        .value-comparison .neutral { color: #6b7280; /* gray-500 */ } /* Added neutral style */
+
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="body-padding">
+    <div class="main-grid-container">
+
+        <aside class="lg:col-span-1 space-y-4 flex flex-col">
+            <div class="content-panel">
+                <h2 class="panel-heading">Customer</h2>
+                <div class="mb-2">
+                    <span id="customer-name-heading-display" class="customer-name-heading-display text-lg">???</span>
+                </div>
+                <img id="customer-portrait" src="https://placehold.co/240x200/f9f9f9/333?text=Customer" alt="Customer Portrait" class="portrait">
+            </div>
+            <div id="customer-details-panel" class="content-panel">
+                <h2 class="panel-heading">Customer Details</h2>
+                <div id="customer-details" class="text-sm space-y-1">
+                    <p><strong>Name:</strong> <span id="customer-name">???</span></p>
+                    <p><strong>Age:</strong> <span id="customer-age">???</span></p>
+                    <p><strong>Occupation:</strong> <span id="customer-occupation">???</span></p>
+                    <p><strong>Patience:</strong> <span id="customer-patience">--</span></p>
+                </div>
+            </div>
+            <div id="item-info-panel" class="content-panel">
+                <h2 class="panel-heading">Item Info</h2>
+                <div id="item-info" class="text-sm space-y-1">
+                    <p><strong>Item:</strong> <span id="item-name">Waiting for customer...</span></p>
+                    <p><strong>Description:</strong> <span id="item-description"></span></p>
+                    <p>
+                        <strong><span id="item-price-label">Price/Offer:</span></strong>
+                        <span id="item-price-value"></span>
+                    </p>
+                </div>
+            </div>
+            <div id="appraisal-panel" class="content-panel" style="display: none;"> <h2 class="panel-heading">Appraisal</h2>
+                <div id="appraisal-info" class="text-sm space-y-1 mb-3">
+                    <p><strong>Est. Base Value:</strong> <span id="appraisal-value">???</span></p>
+                    <p><strong>Item Condition:</strong> <span id="appraisal-condition">???</span></p>
+                    <p><strong>Item Rarity:</strong> <span id="appraisal-rarity">???</span></p>
+                </div>
+                <button id="appraise-button" class="btn w-full text-sm" disabled>Appraise Item (1 Use)</button>
+            </div>
+        </aside>
+
+        <main class="lg:col-span-1 flex">
+             <div class="content-panel flex flex-col w-full">
+                <h2 class="panel-heading">Conversation Log</h2>
+                <div id="dialogue-log" class="mb-4 flex-grow">
+                    <p class="italic">Waiting for customer...</p>
+                </div>
+                <div id="message-area" class="text-sm" style="display: none;"></div>
+             </div>
+        </main>
+
+        <aside class="lg:col-span-1 space-y-4">
+            <div class="content-panel">
+                <h2 class="panel-heading">Player</h2>
+                <div class="mb-2 flex items-center justify-between">
+                    <div id="player-name-display-group">
+                        <span id="player-name-display" class="player-name-display">Player</span>
+                        <button id="edit-name-button" class="btn text-xs py-1 px-2">Edit</button>
+                    </div>
+                    <div id="player-name-edit-group" class="edit-name-input-group hidden w-full">
+                        <input type="text" id="player-name-input" class="input-field text-sm flex-grow" placeholder="Enter name...">
+                        <button id="save-name-button" class="btn text-xs py-1 px-2">Save</button>
+                    </div>
+                </div>
+                <img id="player-portrait" src="https://placehold.co/240x200/f9f9f9/333?text=Player" alt="Player Portrait" class="portrait">
+                <button id="change-avatar-button" class="btn w-full text-sm">Change Avatar</button>
+            </div>
+            <div class="content-panel">
+                <h2 class="panel-heading">Shop Info</h2>
+                <p class="text-lg font-semibold mb-3">Cash: <span id="player-cash">$1000</span></p>
+                <button id="new-customer-button" class="btn w-full mb-2 text-sm">New Customer</button>
+                <div class="space-y-2">
+                    <button id="options-button" class="btn w-full text-sm">Options</button>
+                    <button id="inventory-button" class="btn w-full text-sm">View Inventory</button>
+                </div>
+                 <p id="api-key-status" class="text-xs text-center mt-2"></p>
+            </div>
+            <div class="content-panel">
+                <h2 class="panel-heading">Your Actions</h2>
+                <div class="space-y-3">
+                    <div>
+                        <label for="player-input" class="block text-sm font-medium mb-1">Your Message:</label>
+                        <div class="flex space-x-2">
+                            <textarea id="player-input" placeholder="Type message or offer..." class="input-field flex-grow" disabled rows="3"></textarea>
+                            <button id="send-button" class="btn self-end" disabled>Send</button> </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 pt-1">
+                        <button id="accept-price-button" class="btn" disabled>Accept Price</button>
+                        <button id="end-negotiation-button" class="btn" disabled>End Negotiation</button>
+                    </div>
+                </div>
+            </div>
+            </aside>
+
+    </div> <div id="options-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden modal-overlay">
+        <div class="w-full max-w-md relative border modal-content p-6 rounded shadow-lg">
+            <button id="close-options-button" class="absolute top-2 right-3 text-2xl font-bold text-gray-500 hover:text-black">&times;</button>
+            <h2 class="panel-heading text-lg mb-5">Options</h2>
+            <div class="space-y-4">
+                <div>
+                    <label for="api-key-input" class="block text-sm font-medium mb-1">Gemini API Key:</label>
+                    <input type="password" id="api-key-input" placeholder="Paste your API Key here" class="input-field">
+                    <button id="save-api-key-button" class="btn w-full mt-2 text-sm">Save API Key</button>
+                </div>
+                <div>
+                    <label for="avatar-style-select" class="block text-sm font-medium mb-1">Avatar Style:</label>
+                    <select id="avatar-style-select" class="input-field">
+                        <option value="adventurer">Adventurer</option>
+                        <option value="avataaars">Avataaars</option>
+                        <option value="big-ears">Big Ears</option>
+                        <option value="big-smile">Big Smile</option>
+                        <option value="bottts">Bottts</option>
+                        <option value="croodles">Croodles</option>
+                        <option value="dylan">Dylan</option>
+                        <option value="lorelei">Lorelei</option>
+                        <option value="micah">Micah</option>
+                        <option value="miniavs">Miniavs</option>
+                        <option value="notionists">Notionists</option>
+                        <option value="open-peeps">Open Peeps</option>
+                        <option value="personas">Personas</option>
+                        <option value="pixel-art" selected>Pixel Art</option>
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">Style change applies on next load / new avatar generation.</p>
+                </div>
+
+                <div class="pt-4 border-t border-gray-200">
+                     <h3 class="text-md font-semibold mb-3 text-gray-700">Game Data</h3>
+                     <div class="grid grid-cols-2 gap-3">
+                         <button id="save-game-button" class="btn btn-save-load w-full text-sm" disabled>Save Game</button>
+                         <button id="load-game-button" class="btn btn-save-load w-full text-sm" disabled>Load Game</button>
+                     </div>
+                     <p class="text-xs text-gray-500 mt-2">Save is only available between customers.</p>
+                </div>
+
+            </div> </div>
+    </div>
+
+    <div id="inventory-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden modal-overlay">
+        <div class="w-full max-w-4xl relative border modal-content p-6 rounded shadow-lg">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                 <h2 class="panel-heading text-xl mb-0 border-b-0 pb-0">Shop Inventory</h2>
+                 <button id="close-inventory-modal" class="text-2xl font-bold text-gray-500 hover:text-black">&times;</button>
+            </div>
+            <div id="inventory-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <p class="italic text-gray-500 col-span-full">Inventory is empty.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/dataGenerators.js" defer></script>
+    <script src="js/llm.js" defer></script>
+    <script src="js/ui.js" defer></script>
+    <script src="js/main.js" defer></script>
+
+</body>
+</html>
