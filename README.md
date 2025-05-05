@@ -1,6 +1,8 @@
 # Pawn-Shop-LLM
 A Pawn Shop game where you interact with an LLM, and negotiate to purchase and sell items.
 
+Play Online: https://desubicator.github.io/Pawn-Shop-LLM/
+
 ## How to Play / Gameplay Loop
 
 1.  **Setup:** Open the game and go to **Options** to enter your **Google Gemini API Key**. The game cannot function without it. You can also customize your player name and avatar style here.
